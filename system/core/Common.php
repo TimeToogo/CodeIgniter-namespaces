@@ -1,4 +1,4 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -113,6 +113,7 @@ if ( ! function_exists('is_really_writable'))
 * previously been instantiated the variable is returned.
 *
 * @access	public
+* @param	string?	the sub namespace of the class being requested (if null class is fully qualified)
 * @param	string	the class name being requested
 * @param	string	the directory where the class should be found
 * @param	string	the class name prefix
@@ -120,8 +121,11 @@ if ( ! function_exists('is_really_writable'))
 */
 if ( ! function_exists('load_class'))
 {
-	function &load_class($class, $directory = 'libraries', $prefix = 'CI_')
+	function &load_class($class, $sub_namespace = null, $directory = 'libraries', $prefix = 'CI_')
 	{
+                $qualifier = function ($class, $system = true) use (&$sub_namespace) {
+                    return ($sub_namespace === null) ? $class : resolve_namespace($sub_namespace, $class, $system);
+                };
 		static $_classes = array();
 
 		// Does the class exist?  If so, we're done...
@@ -136,10 +140,12 @@ if ( ! function_exists('load_class'))
 		// then in the native system/libraries folder
 		foreach (array(APPPATH, BASEPATH) as $path)
 		{
+                        $system = $path === BASEPATH;
+                        
 			if (file_exists($path.$directory.'/'.$class.'.php'))
 			{
-				$name = $prefix.$class;
-
+				$name = $qualifier($prefix.$class, $system);
+                                
 				if (class_exists($name) === FALSE)
 				{
 					require($path.$directory.'/'.$class.'.php');
@@ -152,7 +158,7 @@ if ( ! function_exists('load_class'))
 		// Is the request a class extension?  If so we load it too
 		if (file_exists(APPPATH.$directory.'/'.config_item('subclass_prefix').$class.'.php'))
 		{
-			$name = config_item('subclass_prefix').$class;
+			$name = $qualifier(config_item('subclass_prefix').$class, true);
 
 			if (class_exists($name) === FALSE)
 			{
@@ -165,14 +171,15 @@ if ( ! function_exists('load_class'))
 		{
 			// Note: We use exit() rather then show_error() in order to avoid a
 			// self-referencing loop with the Excptions class
+                    
 			exit('Unable to locate the specified class: '.$class.'.php');
 		}
 
 		// Keep track of what we just loaded
-		is_loaded($class);
-
-		$_classes[$class] = new $name();
-		return $_classes[$class];
+		is_loaded($class, $name);
+                
+		$_classes[$name] = new $name();
+		return $_classes[$name];
 	}
 }
 
@@ -187,13 +194,13 @@ if ( ! function_exists('load_class'))
 */
 if ( ! function_exists('is_loaded'))
 {
-	function &is_loaded($class = '')
+	function &is_loaded($class = '', $qualified_class = '')
 	{
 		static $_is_loaded = array();
 
-		if ($class != '')
+		if ($qualified_class != '')
 		{
-			$_is_loaded[strtolower($class)] = $class;
+			$_is_loaded[strtolower($class)] = $qualified_class;
 		}
 
 		return $_is_loaded;
@@ -305,7 +312,7 @@ if ( ! function_exists('show_error'))
 {
 	function show_error($message, $status_code = 500, $heading = 'An Error Was Encountered')
 	{
-		$_error =& load_class('Exceptions', 'core');
+		$_error =& load_class('Exceptions', SYSTEM_CORE_NAMESPACE, 'core');
 		echo $_error->show_error($heading, $message, 'error_general', $status_code);
 		exit;
 	}
@@ -327,7 +334,7 @@ if ( ! function_exists('show_404'))
 {
 	function show_404($page = '', $log_error = TRUE)
 	{
-		$_error =& load_class('Exceptions', 'core');
+		$_error =& load_class('Exceptions', SYSTEM_CORE_NAMESPACE, 'core');
 		$_error->show_404($page, $log_error);
 		exit;
 	}
@@ -355,7 +362,7 @@ if ( ! function_exists('log_message'))
 			return;
 		}
 
-		$_log =& load_class('Log');
+		$_log =& load_class('Log', SYSTEM_LIBRARY_NAMESPACE);
 		$_log->write_log($level, $message, $php_error);
 	}
 }
@@ -478,7 +485,7 @@ if ( ! function_exists('_exception_handler'))
 			return;
 		}
 
-		$_error =& load_class('Exceptions', 'core');
+		$_error =& load_class('Exceptions', SYSTEM_CORE_NAMESPACE, 'core');
 
 		// Should we display the error? We'll get the current error_reporting
 		// level and add its bits with the severity bits to find out.
@@ -560,23 +567,42 @@ if ( ! function_exists('html_escape'))
 	}
 }
 
-//EDIT
+if ( ! function_exists('make_namespace'))
+{
+	function make_namespace()
+	{
+                $namespaces = func_get_args();
+                $full_namespace = '\\';
+                foreach ($namespaces as $namespace) {
+                    $full_namespace .= $namespace . '\\';
+                }
+                $full_namespace = substr($full_namespace, 0, strlen($full_namespace) - 1);
+                
+                return $full_namespace;
+	}
+}
+
 /**
 * Returns the fully qualified class name using namespace constants and supplied sub namespace
 *
 * @access	public
 * @param	string
 * @param	string
+* @param	bool
 * @return	string
 */
 if ( ! function_exists('resolve_namespace'))
 {
-	function resolve_namespace($sub_namespace, $class)
+	function resolve_namespace($sub_namespace, $class, $system = false)
 	{
-		return BASE_NAMESPACE . $sub_namespace . $class;
+                if($system){
+                    return make_namespace(CI_NAMESPACE, SYSTEM_NAMESPACE, $sub_namespace, $class);
+                }
+                else {
+                    return make_namespace(BASE_NAMESPACE, APPLICATION_NAMESPACE, $sub_namespace, $class);
+                }
 	}
 }
-//ENDEDIT
 
 /* End of file Common.php */
 /* Location: ./system/core/Common.php */

@@ -1,4 +1,4 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php namespace CI\System\Core; if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -67,7 +67,7 @@ class CI_Hooks {
 	 */
 	function _initialize()
 	{
-		$CFG =& load_class('Config', 'core');
+		$CFG =& load_class('Config', SYSTEM_CORE_NAMESPACE, 'core');
 
 		// If hooks are not enabled in the config file
 		// there is nothing else to do

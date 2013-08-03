@@ -42,6 +42,14 @@
  *
  */
 	define('CI_CORE', FALSE);
+        
+/**
+ * CodeIgniter Namespaces
+ */
+	define('CI_NAMESPACE', 'CI');
+	define('SYSTEM_NAMESPACE', 'System');
+	define('SYSTEM_CORE_NAMESPACE', 'Core');
+	define('SYSTEM_LIBRARY_NAMESPACE', 'Libraries');
 
 /*
  * ------------------------------------------------------
@@ -128,7 +136,7 @@
  *  Start the timer... tick tock tick tock...
  * ------------------------------------------------------
  */
-	$BM =& load_class('Benchmark', 'core');
+	$BM =& load_class('Benchmark', SYSTEM_CORE_NAMESPACE, 'core');
 	$BM->mark('total_execution_time_start');
 	$BM->mark('loading_time:_base_classes_start');
 
@@ -137,7 +145,7 @@
  *  Instantiate the hooks class
  * ------------------------------------------------------
  */
-	$EXT =& load_class('Hooks', 'core');
+	$EXT =& load_class('Hooks', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
@@ -151,7 +159,7 @@
  *  Instantiate the config class
  * ------------------------------------------------------
  */
-	$CFG =& load_class('Config', 'core');
+	$CFG =& load_class('Config', SYSTEM_CORE_NAMESPACE, 'core');
 
 	// Do we have any manually set config items in the index.php file?
 	if (isset($assign_to_config))
@@ -171,21 +179,21 @@
  *
  */
 
-	$UNI =& load_class('Utf8', 'core');
+	$UNI =& load_class('Utf8', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
  *  Instantiate the URI class
  * ------------------------------------------------------
  */
-	$URI =& load_class('URI', 'core');
+	$URI =& load_class('URI', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
  *  Instantiate the routing class and set the routing
  * ------------------------------------------------------
  */
-	$RTR =& load_class('Router', 'core');
+	$RTR =& load_class('Router', SYSTEM_CORE_NAMESPACE, 'core');
 	$RTR->_set_routing();
 
 	// Set any routing overrides that may exist in the main index file
@@ -199,7 +207,7 @@
  *  Instantiate the output class
  * ------------------------------------------------------
  */
-	$OUT =& load_class('Output', 'core');
+	$OUT =& load_class('Output', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
@@ -219,21 +227,21 @@
  * Load the security class for xss and csrf support
  * -----------------------------------------------------
  */
-	$SEC =& load_class('Security', 'core');
+	$SEC =& load_class('Security', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
  *  Load the Input class and sanitize globals
  * ------------------------------------------------------
  */
-	$IN	=& load_class('Input', 'core');
+	$IN	=& load_class('Input', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
  *  Load the Language class
  * ------------------------------------------------------
  */
-	$LANG =& load_class('Lang', 'core');
+	$LANG =& load_class('Lang', SYSTEM_CORE_NAMESPACE, 'core');
 
 /*
  * ------------------------------------------------------
@@ -243,10 +251,11 @@
  */
 	// Load the base controller class
 	require BASEPATH.'core/Controller.php';
-
+        $CI_Controller = resolve_namespace(SYSTEM_CORE_NAMESPACE, 'CI_Controller', true);
+        
 	function &get_instance()
 	{
-		return CI_Controller::get_instance();
+		return \CI\System\Core\CI_Controller::get_instance();
 	}
 
 
@@ -279,10 +288,11 @@
  */
 	$class  = $RTR->fetch_class();
 	$method = $RTR->fetch_method();
-
-	if ( ! class_exists($class)
+        $qualified_controller_class = resolve_namespace(CONTROLLER_NAMESPACE, $class);
+        
+	if ( ! class_exists($qualified_controller_class)
 		OR strncmp($method, '_', 1) == 0
-		OR in_array(strtolower($method), array_map('strtolower', get_class_methods('CI_Controller')))
+		OR in_array(strtolower($method), array_map('strtolower',  get_class_methods($CI_Controller)))
 		)
 	{
 		if ( ! empty($RTR->routes['404_override']))
@@ -290,7 +300,7 @@
 			$x = explode('/', $RTR->routes['404_override']);
 			$class = $x[0];
 			$method = (isset($x[1]) ? $x[1] : 'index');
-			if ( ! class_exists($class))
+			if ( ! class_exists($qualified_controller_class))
 			{
 				if ( ! file_exists(APPPATH.'controllers/'.$class.'.php'))
 				{
@@ -321,16 +331,15 @@
 	// Mark a start point so we can benchmark the controller
 	$BM->mark('controller_execution_time_( '.$class.' / '.$method.' )_start');
         
-        //EDIT -- Now supports custom controller factory for resolving controller dependencies
+        //Now supports custom controller factory for resolving custom controller dependencies
         $CI = null;
         if(defined('CI_CONTROLLER_FACTORY')) {
             $ControllerFactory = CI_CONTROLLER_FACTORY;
-            $CI = call_user_func($ControllerFactory, $class);
+            $CI = call_user_func($ControllerFactory, $qualified_controller_class);
         }
         else {
-            $CI = new $class();
+            $CI = new $qualified_controller_class();
         }
-        //ENDEDIT
 
 /*
  * ------------------------------------------------------

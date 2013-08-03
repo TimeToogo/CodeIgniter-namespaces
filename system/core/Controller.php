@@ -1,4 +1,5 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php  namespace CI\System\Core;
+if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -46,7 +47,7 @@ class CI_Controller {
 			$this->$var =& load_class($class);
 		}
 
-		$this->load =& load_class('Loader', 'core');
+		$this->load =& load_class('Loader', SYSTEM_CORE_NAMESPACE, 'core');
 
 		$this->load->initialize();
 		

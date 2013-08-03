@@ -1,4 +1,4 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php namespace CI\System\Core; if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -213,7 +213,7 @@ class CI_Loader {
 			$params = NULL;
 		}
 
-		$this->_ci_load_class($library, $params, $object_name);
+		$this->_ci_load_class(SYSTEM_LIBRARY_NAMESPACE, LIBRARY_NAMESPACE, $library, $params, $object_name);
 	}
 
 	// --------------------------------------------------------------------
@@ -293,14 +293,15 @@ class CI_Loader {
 
 			if ( ! class_exists('CI_Model'))
 			{
-				load_class('Model', 'core');
+				load_class('Model', SYSTEM_CORE_NAMESPACE, 'core');
 			}
 
 			require_once($mod_path.'models/'.$path.$model.'.php');
 
 			$model = ucfirst($model);
-
-			$CI->$name = new $model();
+                        
+                        $qualified_model = resolve_namespace(MODEL_NAMESPACE, $model, false);
+			$CI->$name = new $qualified_model();
 
 			$this->_ci_models[] = $name;
 			return;
@@ -871,12 +872,13 @@ class CI_Loader {
 	 *
 	 * This function loads the requested class.
 	 *
+	 * @param	string	the sub namespace of the class
 	 * @param	string	the item that is being loaded
 	 * @param	mixed	any additional parameters
 	 * @param	string	an optional object name
 	 * @return	void
 	 */
-	protected function _ci_load_class($class, $params = NULL, $object_name = NULL)
+	protected function _ci_load_class($system_namespace, $app_namespace, $class, $params = NULL, $object_name = NULL)
 	{
 		// Get the class name, and while we're at it trim any slashes.
 		// The directory path can be included as part of the class name,
@@ -922,7 +924,7 @@ class CI_Loader {
 						$CI =& get_instance();
 						if ( ! isset($CI->$object_name))
 						{
-							return $this->_ci_init_class($class, config_item('subclass_prefix'), $params, $object_name);
+							return $this->_ci_init_class($system_namespace, true, $class, config_item('subclass_prefix'), $params, $object_name);
 						}
 					}
 
@@ -935,7 +937,7 @@ class CI_Loader {
 				include_once($subclass);
 				$this->_ci_loaded_files[] = $subclass;
 
-				return $this->_ci_init_class($class, config_item('subclass_prefix'), $params, $object_name);
+				return $this->_ci_init_class($system_namespace, true, $class, config_item('subclass_prefix'), $params, $object_name);
 			}
 
 			// Lets search for the requested library file and load it.
@@ -943,7 +945,9 @@ class CI_Loader {
 			foreach ($this->_ci_library_paths as $path)
 			{
 				$filepath = $path.'libraries/'.$subdir.$class.'.php';
-
+                                $system = $path === BASEPATH;
+                                $sub_namespace = ($system) ? $system_namespace : $app_namespace;
+                                
 				// Does the file exist?  No?  Bummer...
 				if ( ! file_exists($filepath))
 				{
@@ -961,7 +965,7 @@ class CI_Loader {
 						$CI =& get_instance();
 						if ( ! isset($CI->$object_name))
 						{
-							return $this->_ci_init_class($class, '', $params, $object_name);
+							return $this->_ci_init_class($sub_namespace, $system, $class, '', $params, $object_name);
 						}
 					}
 
@@ -972,7 +976,7 @@ class CI_Loader {
 
 				include_once($filepath);
 				$this->_ci_loaded_files[] = $filepath;
-				return $this->_ci_init_class($class, '', $params, $object_name);
+				return $this->_ci_init_class($sub_namespace, $system, $class, '', $params, $object_name);
 			}
 
 		} // END FOREACH
@@ -981,7 +985,7 @@ class CI_Loader {
 		if ($subdir == '')
 		{
 			$path = strtolower($class).'/'.$class;
-			return $this->_ci_load_class($path, $params);
+			return $this->_ci_load_class($system_namespace, $app_namespace, $path, $params);
 		}
 
 		// If we got this far we were unable to find the requested class.
@@ -1000,11 +1004,12 @@ class CI_Loader {
 	 *
 	 * @param	string
 	 * @param	string
+	 * @param	string
 	 * @param	bool
 	 * @param	string	an optional object name
 	 * @return	null
 	 */
-	protected function _ci_init_class($class, $prefix = '', $config = FALSE, $object_name = NULL)
+	protected function _ci_init_class($sub_namespace, $system, $class, $prefix = '', $config = FALSE, $object_name = NULL)
 	{
 		// Is there an associated config file for this class?  Note: these should always be lowercase
 		if ($config === NULL)
@@ -1044,14 +1049,18 @@ class CI_Loader {
 				}
 			}
 		}
-
+                
+                $qualifier = function($class) use (&$sub_namespace, &$system){ 
+                    return resolve_namespace($sub_namespace, $class, $system); 
+                };
+                
 		if ($prefix == '')
 		{
-			if (class_exists('CI_'.$class))
+			if (class_exists($qualifier('CI_'.$class)))
 			{
 				$name = 'CI_'.$class;
 			}
-			elseif (class_exists(config_item('subclass_prefix').$class))
+			elseif (class_exists($qualifier(config_item('subclass_prefix').$class)))
 			{
 				$name = config_item('subclass_prefix').$class;
 			}
@@ -1064,12 +1073,13 @@ class CI_Loader {
 		{
 			$name = $prefix.$class;
 		}
+                $qualified_class = $qualifier($name);
 
 		// Is the class name valid?
-		if ( ! class_exists($name))
+		if ( ! class_exists($qualified_class))
 		{
-			log_message('error', "Non-existent class: ".$name);
-			show_error("Non-existent class: ".$class);
+			log_message('error', "Non-existent class: ".$qualified_class);
+			show_error("Non-existent class: ".$qualified_class);
 		}
 
 		// Set the variable name we will assign the class to
@@ -1087,16 +1097,16 @@ class CI_Loader {
 
 		// Save the class name and object name
 		$this->_ci_classes[$class] = $classvar;
-
+                
 		// Instantiate the class
 		$CI =& get_instance();
 		if ($config !== NULL)
 		{
-			$CI->$classvar = new $name($config);
+			$CI->$classvar = new $qualified_class($config);
 		}
 		else
 		{
-			$CI->$classvar = new $name;
+			$CI->$classvar = new $qualified_class;
 		}
 	}
 

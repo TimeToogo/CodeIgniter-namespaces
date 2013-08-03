@@ -1,4 +1,4 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php namespace CI\System\Core; if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -85,8 +85,8 @@ class CI_Router {
 	 */
 	function __construct()
 	{
-		$this->config =& load_class('Config', 'core');
-		$this->uri =& load_class('URI', 'core');
+		$this->config =& load_class('Config', SYSTEM_CORE_NAMESPACE, 'core');
+		$this->uri =& load_class('URI', SYSTEM_CORE_NAMESPACE, 'core');
 		log_message('debug', "Router Class Initialized");
 	}
 

@@ -1,4 +1,4 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php namespace CI\System\Core; if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
@@ -69,7 +69,7 @@ class CI_URI {
 	 */
 	function __construct()
 	{
-		$this->config =& load_class('Config', 'core');
+		$this->config =& load_class('Config', SYSTEM_CORE_NAMESPACE, 'core');
 		log_message('debug', "URI Class Initialized");
 	}
 
