@@ -1,5 +1,4 @@
-<?php  namespace CI\System\Core;
-if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php  namespace CI\System\Core; if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
  * CodeIgniter
  *
